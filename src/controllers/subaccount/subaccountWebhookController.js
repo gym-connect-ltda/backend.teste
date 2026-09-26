@@ -15,11 +15,100 @@ const GENERAL_STATUS_MAP = {
 };
 
 /**
+ * Cria ou atualiza a linha em "pagamentos" a partir de um evento de
+ * pagamento (aluno → filial). Mesma lógica de upsert que usamos no
+ * webhook de billing SaaS, adaptada pra essa tabela.
+ */
+async function upsertStudentPayment(payment) {
+  const { data: existing } = await supabase
+    .from("pagamentos")
+    .select("id_pagamento, aluno_id, id_filial, id_empresa")
+    .eq("asaas_payment_id", payment.id)
+    .maybeSingle();
+
+  const updatePayload = {
+    status: payment.status,
+    valor: payment.value,
+    data_vencimento: payment.dueDate,
+    tipo_pagamento: payment.billingType,
+    link_pagamento: payment.invoiceUrl || null,
+  };
+
+  if (payment.status === "CONFIRMED" || payment.status === "RECEIVED") {
+    updatePayload.confirmado_em = new Date().toISOString();
+    if (payment.transactionReceiptUrl)
+      updatePayload.receipt_url = payment.transactionReceiptUrl;
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from("pagamentos")
+      .update(updatePayload)
+      .eq("id_pagamento", existing.id_pagamento);
+    if (error) throw new Error(`Erro ao atualizar pagamento: ${error.message}`);
+    return;
+  }
+
+  // Pagamento novo (ex: renovação automática do próximo ciclo) — acha o
+  // aluno/filial/empresa pelo externalReference (aluno_id, setado na
+  // criação da assinatura) ou, na falta dele, por outra cobrança já
+  // existente da mesma assinatura.
+  let alunoId = payment.externalReference
+    ? Number(payment.externalReference)
+    : null;
+  let branchId = null;
+  let companyId = null;
+
+  if (alunoId) {
+    const { data: aluno } = await supabase
+      .from("alunos")
+      .select("id_aluno, id_filial, id_empresa")
+      .eq("id_aluno", alunoId)
+      .maybeSingle();
+    if (aluno) {
+      branchId = aluno.id_filial;
+      companyId = aluno.id_empresa;
+    }
+  }
+
+  if (!branchId && payment.subscription) {
+    const { data: sibling } = await supabase
+      .from("pagamentos")
+      .select("aluno_id, id_filial, id_empresa")
+      .eq("asaas_subscription_id", payment.subscription)
+      .limit(1)
+      .maybeSingle();
+    if (sibling) {
+      alunoId = sibling.aluno_id;
+      branchId = sibling.id_filial;
+      companyId = sibling.id_empresa;
+    }
+  }
+
+  if (!alunoId || !branchId) {
+    throw new Error(
+      `Não foi possível identificar o aluno do pagamento ${payment.id} (sem referência local).`,
+    );
+  }
+
+  const { error } = await supabase.from("pagamentos").insert({
+    aluno_id: alunoId,
+    asaas_subscription_id: payment.subscription || null,
+    asaas_payment_id: payment.id,
+    tipo_operacao: "RENOVACAO",
+    id_filial: branchId,
+    id_empresa: companyId,
+    ...updatePayload,
+  });
+
+  if (error) throw new Error(`Erro ao criar pagamento: ${error.message}`);
+}
+
+/**
  * Endpoint público (sem authMiddleware) chamado pelo Asaas quando a
- * situação cadastral de uma subconta muda. Autenticidade validada via
- * header "asaas-access-token" comparado a ASAAS_SUBACCOUNT_WEBHOOK_TOKEN
- * — token distinto do webhook de billing SaaS, de propósito (domínios
- * diferentes, contas Asaas diferentes).
+ * situação cadastral de uma subconta muda OU quando uma cobrança de
+ * aluno muda de status — os dois tipos de evento chegam nessa mesma
+ * URL, já que ambos são configurados no webhook de cada subconta.
  */
 const handleAccountStatusWebhook = async (req, res) => {
   const receivedToken = req.headers["asaas-access-token"];
@@ -41,6 +130,7 @@ const handleAccountStatusWebhook = async (req, res) => {
   const event = req.body;
   const eventType = event?.event;
   const accountStatus = event?.accountStatus;
+  const payment = event?.payment;
   const asaasAccountId = accountStatus?.id;
 
   const { data: logRow, error: logError } = await supabase
@@ -78,6 +168,10 @@ const handleAccountStatusWebhook = async (req, res) => {
           `Erro ao atualizar status local da subconta: ${updateError.message}`,
         );
       }
+    }
+
+    if (payment && eventType?.startsWith("PAYMENT_")) {
+      await upsertStudentPayment(payment);
     }
 
     if (logRow) {

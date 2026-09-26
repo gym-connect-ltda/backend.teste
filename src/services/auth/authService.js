@@ -17,21 +17,24 @@ const login = async (email, password) => {
     .single();
 
   if (userError || !user) throw new Error("Credenciais inválidas");
-
-  if (!user.status_usuario) {
+  if (!user.status_usuario)
     throw new Error("Usuário inativo, sem permissão para acessar o sistema!");
-  }
 
   const isPasswordValid = await bcrypt.compare(password, user.senha_usuario);
-
   if (!isPasswordValid) throw new Error("Credenciais inválidas");
 
+  // Perfil agora é só um rótulo/cargo (ex: "Gerente") pra exibição — a
+  // permissão de verdade mora no próprio usuário (permissoes_usuario),
+  // copiada do perfil só no momento da criação do usuário.
   const { data: profile } = await supabase
     .from("perfis")
     .select("nome_perfil")
     .eq("id_perfil", user.id_perfil)
     .maybeSingle();
 
+  // Sem fallback permissivo de propósito: se por algum motivo a permissão
+  // do usuário vier vazia, o resultado é "sem nenhuma permissão" — nunca
+  // "libera tudo". Falhar fechado é o comportamento seguro.
   const permissions = user.permissoes_usuario || {};
 
   const { data: company } = await supabase
@@ -39,12 +42,6 @@ const login = async (email, password) => {
     .select("nome_empresa")
     .eq("id_empresa", user.id_empresa)
     .single();
-
-  const { data: branch } = await supabase
-    .from("filiais")
-    .select("nome_filial")
-    .eq("id_filial", user.id_filial)
-    .maybeSingle();
 
   const tokenPayload = {
     id_usuario: user.id_usuario,
@@ -56,7 +53,6 @@ const login = async (email, password) => {
     permissions,
     allBranchesAccess: user.acesso_todas_filiais || false,
     nome_empresa: company?.nome_empresa,
-    nome_filial: branch?.nome_filial,
     perfil_usuario: profile?.nome_perfil,
     primeiro_acesso_usuario: user.primeiro_acesso_usuario,
     aceitou_termos: user.aceitou_termos,
@@ -147,12 +143,7 @@ const uploadAvatar = async (userId, file) => {
     throw new Error("A imagem deve ter no máximo 5MB.");
   }
 
-  const extension =
-    file.mimetype === "image/png"
-      ? "png"
-      : file.mimetype === "image/webp"
-        ? "webp"
-        : "jpg";
+  const extension = file.mimetype === "image/png" ? "png" : file.mimetype === "image/webp" ? "webp" : "jpg";
   const filePath = `${userId}/${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
@@ -163,9 +154,7 @@ const uploadAvatar = async (userId, file) => {
     });
 
   if (uploadError) {
-    throw new Error(
-      `Erro ao enviar imagem para o Storage: ${uploadError.message}`,
-    );
+    throw new Error(`Erro ao enviar imagem para o Storage: ${uploadError.message}`);
   }
 
   const { data: publicUrlData } = supabase.storage

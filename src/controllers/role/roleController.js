@@ -2,11 +2,7 @@ const roleService = require("../../services/role/roleService");
 const auditService = require("../../services/audit/auditService");
 
 const createNewRole = async (req, res) => {
-  const {
-    id_empresa: companyId,
-    id_usuario: actorId,
-    id_filial: actorBranchId,
-  } = req.user;
+  const { id_empresa: companyId, id_usuario: actorId, id_filial: actorBranchId } = req.user;
   const { name, branchId, permissions, allBranchesAccess } = req.body;
 
   if (!name || !permissions) {
@@ -37,9 +33,7 @@ const createNewRole = async (req, res) => {
       description: `Cadastrou o perfil ${name}`,
     });
 
-    return res
-      .status(201)
-      .json({ message: "Perfil cadastrado com sucesso!", ...role });
+    return res.status(201).json({ message: "Perfil cadastrado com sucesso!", ...role });
   } catch (err) {
     return res.status(400).json({ message: err.message });
   }
@@ -47,10 +41,9 @@ const createNewRole = async (req, res) => {
 
 const getCompanyRoles = async (req, res) => {
   const { id_empresa: companyId } = req.user;
-  const { branchId } = req.query;
 
   try {
-    const roles = await roleService.listRoles(companyId, branchId);
+    const roles = await roleService.listRoles(companyId);
     return res.json(roles);
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -58,11 +51,7 @@ const getCompanyRoles = async (req, res) => {
 };
 
 const editCompanyRole = async (req, res) => {
-  const {
-    id_empresa: companyId,
-    id_usuario: actorId,
-    id_filial: actorBranchId,
-  } = req.user;
+  const { id_empresa: companyId, id_usuario: actorId, id_filial: actorBranchId } = req.user;
   const { id: roleId } = req.params;
   const { name, branchId, permissions, status, allBranchesAccess } = req.body;
 

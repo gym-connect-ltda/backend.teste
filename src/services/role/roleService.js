@@ -30,21 +30,12 @@ async function assertBranchBelongsToCompany(branchId, companyId) {
   }
 }
 
-const listRoles = async (companyId, branchId = null) => {
-  let query = supabase
+const listRoles = async (companyId) => {
+  const { data: roles, error } = await supabase
     .from("perfis")
     .select("*, filiais(nome_filial)")
-    .eq("id_empresa", companyId);
-
-  if (branchId) {
-    await assertBranchBelongsToCompany(branchId, companyId);
-
-    query = query.eq("id_filial", Number(branchId));
-  }
-
-  const { data: roles, error } = await query.order("criado_em", {
-    ascending: false,
-  });
+    .eq("id_empresa", companyId)
+    .order("criado_em", { ascending: false });
 
   if (error) {
     throw new Error(`Erro ao listar perfis do banco: ${error.message}`);
@@ -53,13 +44,7 @@ const listRoles = async (companyId, branchId = null) => {
   return roles.map(mapRole);
 };
 
-const createRole = async ({
-  companyId,
-  name,
-  branchId,
-  permissions,
-  allBranchesAccess,
-}) => {
+const createRole = async ({ companyId, name, branchId, permissions, allBranchesAccess }) => {
   await assertBranchBelongsToCompany(branchId, companyId);
 
   const { data: role, error } = await supabase
@@ -76,9 +61,7 @@ const createRole = async ({
     .single();
 
   if (error || !role) {
-    throw new Error(
-      `Erro ao cadastrar perfil no banco de dados: ${error?.message}`,
-    );
+    throw new Error(`Erro ao cadastrar perfil no banco de dados: ${error?.message}`);
   }
 
   return mapRole(role);

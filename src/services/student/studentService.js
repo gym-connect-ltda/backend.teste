@@ -9,13 +9,10 @@ const { applyBranchScope } = require("../../utils/branchScope");
  */
 function generateMatricula() {
   const now = new Date();
-
   const datePart = `${String(now.getDate()).padStart(2, "0")}${String(
     now.getMonth() + 1,
   ).padStart(2, "0")}${String(now.getFullYear()).slice(-2)}`;
-
   const uniquePart = String(Date.now()).slice(-6);
-
   return `${datePart}${uniquePart}`;
 }
 
@@ -114,10 +111,7 @@ const createStudent = async ({
     if (lastError.message?.includes("cpf_aluno")) {
       throw new Error("Já existe um aluno cadastrado com este CPF.");
     }
-
-    throw new Error(
-      "Não foi possível gerar uma matrícula única. Tente novamente.",
-    );
+    throw new Error("Não foi possível gerar uma matrícula única. Tente novamente.");
   }
 
   throw new Error(
@@ -139,9 +133,7 @@ const listStudents = async (companyId, user) => {
 
     query = applyBranchScope(query, user);
 
-    return query.order("data_cadastro_aluno", {
-      ascending: false,
-    });
+    return query.order("data_cadastro_aluno", { ascending: false });
   });
 
   return students.map(mapStudent);
@@ -231,7 +223,7 @@ const updateStudent = async (
  * de filial/CPF duplicado — e devolve o resultado individual de cada linha,
  * sem que uma linha com erro derrube o lote inteiro.
  */
-const importStudents = async ({ companyId, branchId, rows, onProgress }) => {
+const importStudents = async ({ companyId, branchId, rows }) => {
   const results = [];
 
   for (const row of rows) {
@@ -249,29 +241,9 @@ const importStudents = async ({ companyId, branchId, rows, onProgress }) => {
           : undefined,
       });
 
-      const result = {
-        rowNumber: row.rowNumber,
-        success: true,
-        student,
-      };
-
-      results.push(result);
-
-      if (typeof onProgress === "function") {
-        await onProgress(result);
-      }
+      results.push({ rowNumber: row.rowNumber, success: true, student });
     } catch (err) {
-      const result = {
-        rowNumber: row.rowNumber,
-        success: false,
-        error: err.message,
-      };
-
-      results.push(result);
-
-      if (typeof onProgress === "function") {
-        await onProgress(result);
-      }
+      results.push({ rowNumber: row.rowNumber, success: false, error: err.message });
     }
   }
 

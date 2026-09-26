@@ -12,7 +12,8 @@ const cashflowRoutes = require("./cashflowRoutes");
 const billingRoutes = require("./billingRoutes");
 const webhookRoutes = require("./webhookRoutes");
 const subaccountRoutes = require("./subaccountRoutes");
-
+const studentAuthRoutes = require("./studentAuthRoutes");
+const academyRoutes = require("./academyRoutes");
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -28,5 +29,7 @@ router.use("/cashflow", cashflowRoutes);
 router.use("/billing", billingRoutes);
 router.use("/webhooks", webhookRoutes);
 router.use("/subaccounts", subaccountRoutes);
+router.use("/student-auth", studentAuthRoutes);
+router.use("/academies", academyRoutes);
 
 module.exports = router;

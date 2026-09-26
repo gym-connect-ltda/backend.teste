@@ -27,9 +27,6 @@ router.use(authMiddleware);
 router.use(subscriptionGuard);
 router.use(requirePermission(["alunos"]));
 
-router.get("/import/active", studentController.getActiveStudentImport);
-router.get("/import/:id", studentController.getStudentImport);
-
 router.post("/", studentController.createNewStudent);
 router.get("/", studentController.getCompanyStudents);
 router.get("/:id", studentController.getStudent);

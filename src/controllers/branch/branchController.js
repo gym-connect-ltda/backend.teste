@@ -175,14 +175,14 @@ const editCompanyBranch = async (req, res) => {
   }
 };
 
-const deactivateBranch = async (req, res) => {
+const uploadBranchImage = async (req, res) => {
+  const { id: branchId } = req.params;
+  const { kind } = req.params; // "banner" | "perfil"
   const {
     id_empresa: companyId,
     id_usuario: actorId,
     id_filial: actorBranchId,
   } = req.user;
-
-  const { id: branchId } = req.params;
 
   try {
     assertBranchAllowed(req.user, branchId);
@@ -191,22 +191,25 @@ const deactivateBranch = async (req, res) => {
   }
 
   try {
-    const branch = await branchService.deactivateBranch(branchId, companyId);
+    const imageUrl = await branchService.uploadBranchImage(
+      branchId,
+      req.file,
+      kind,
+    );
 
     auditService.logAction({
       companyId,
       userId: actorId,
       branchId: branchId || actorBranchId,
-      action: "Inativou",
-      description: `Inativou a filial ${branch.nome_filial || branchId}`,
+      action: "Atualizou imagem da filial",
+      description: `Enviou nova imagem (${kind}) para a filial.`,
     });
 
-    return res.json({
-      message: "Filial inativada com sucesso!",
-      branch,
-    });
+    return res
+      .status(200)
+      .json({ message: "Imagem atualizada com sucesso!", imageUrl });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };
 
@@ -214,5 +217,5 @@ module.exports = {
   createNewBranch,
   getCompanyBranches,
   editCompanyBranch,
-  deactivateBranch,
+  uploadBranchImage,
 };
