@@ -1,0 +1,32 @@
+const { Router } = require("express");
+const authRoutes = require("./authRoutes");
+const companyRoutes = require("./companyRoutes");
+const branchRoutes = require("./branchRoutes");
+const studentRoutes = require("./studentRoutes");
+const roleRoutes = require("./roleRoutes");
+const userRoutes = require("./userRoutes");
+const historyRoutes = require("./historyRoutes");
+const dashboardRoutes = require("./dashboardRoutes");
+const pricingRoutes = require("./pricingRoutes");
+const cashflowRoutes = require("./cashflowRoutes");
+const billingRoutes = require("./billingRoutes");
+const webhookRoutes = require("./webhookRoutes");
+const subaccountRoutes = require("./subaccountRoutes");
+
+const router = Router();
+
+router.use("/auth", authRoutes);
+router.use("/company", companyRoutes);
+router.use("/branch", branchRoutes);
+router.use("/student", studentRoutes);
+router.use("/roles", roleRoutes);
+router.use("/users", userRoutes);
+router.use("/history", historyRoutes);
+router.use("/dashboard", dashboardRoutes);
+router.use("/pricing", pricingRoutes);
+router.use("/cashflow", cashflowRoutes);
+router.use("/billing", billingRoutes);
+router.use("/webhooks", webhookRoutes);
+router.use("/subaccounts", subaccountRoutes);
+
+module.exports = router;
